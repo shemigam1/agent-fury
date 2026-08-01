@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+import time
+
 from fury.core.errors import ProviderError, ProviderNotAvailable
 from fury.core.history import (
     History,
@@ -69,13 +72,16 @@ class GeminiProvider(Provider):
                     if isinstance(p, TextPart) and p.text:
                         parts.append(types.Part(text=p.text))
                     elif isinstance(p, ToolCallPart):
-                        parts.append(
-                            types.Part(
-                                function_call=types.FunctionCall(
-                                    name=p.name, args=p.args
-                                )
+                        part = types.Part(
+                            function_call=types.FunctionCall(
+                                name=p.name, args=p.args
                             )
                         )
+                        # Replay the thought_signature that Gemini "thinking"
+                        # models require when a prior function call is sent back.
+                        if p.signature is not None:
+                            part.thought_signature = p.signature
+                        parts.append(part)
                 if parts:
                     contents.append(types.Content(role="model", parts=parts))
             elif msg.role == "tool":
@@ -90,7 +96,9 @@ class GeminiProvider(Provider):
                                 name=p.name, response=payload
                             )
                         )
-                contents.append(types.Content(role="tool", parts=parts))
+                # Gemini function responses must use role "user" — the API does
+                # not accept a "tool"/"function" role for content.
+                contents.append(types.Content(role="user", parts=parts))
         return contents
 
     def _tools(self, tools: list[Tool]):
@@ -107,22 +115,47 @@ class GeminiProvider(Provider):
         ]
         return [types.Tool(function_declarations=decls)]
 
+    # -- resilience ---------------------------------------------------------
+    def _with_retry(self, call, max_attempts: int = 4):
+        """Retry on 429/RESOURCE_EXHAUSTED, honoring the server's retry delay.
+
+        Free tiers are rate-limited (e.g. a few requests/minute), and a single
+        agent task makes several calls — so basic backoff is what makes the tool
+        usable rather than failing halfway through a task.
+        """
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return call()
+            except Exception as e:  # noqa: BLE001
+                msg = str(e)
+                retryable = "429" in msg or "RESOURCE_EXHAUSTED" in msg
+                if not retryable or attempt == max_attempts:
+                    raise ProviderError(f"Gemini request failed: {e}") from e
+                time.sleep(min(self._retry_delay(msg) or 2 ** attempt, 60))
+
+    @staticmethod
+    def _retry_delay(msg: str) -> float:
+        m = re.search(r"retry in ([\d.]+)s", msg) or re.search(
+            r"retryDelay['\"]?:\s*['\"]?(\d+)s", msg
+        )
+        return float(m.group(1)) + 0.5 if m else 0.0
+
     # -- native -> canonical ------------------------------------------------
     def generate(
         self, system: str, history: History, tools: list[Tool]
     ) -> ProviderResponse:
         types = self._genai.types
-        try:
-            response = self._client.models.generate_content(
+        config = types.GenerateContentConfig(
+            tools=self._tools(tools),
+            system_instruction=system,
+        )
+        response = self._with_retry(
+            lambda: self._client.models.generate_content(
                 model=self.meta.model,
                 contents=self._contents(history),
-                config=types.GenerateContentConfig(
-                    tools=self._tools(tools),
-                    system_instruction=system,
-                ),
+                config=config,
             )
-        except Exception as e:  # noqa: BLE001
-            raise ProviderError(f"Gemini request failed: {e}") from e
+        )
 
         usage = Usage()
         if response.usage_metadata:
@@ -131,18 +164,29 @@ class GeminiProvider(Provider):
                 response.usage_metadata.candidates_token_count or 0,
             )
 
-        tool_calls = []
-        for fc in response.function_calls or []:
-            tool_calls.append(
-                ToolCallPart(new_call_id(), fc.name, dict(fc.args or {}))
-            )
-
-        text = ""
-        try:
-            text = response.text or ""
-        except Exception:  # response.text raises if only function calls present
-            text = ""
+        # Iterate parts directly so we can pair each function_call with its
+        # thought_signature (and avoid response.text's function-call warning).
+        text_chunks: list[str] = []
+        tool_calls: list[ToolCallPart] = []
+        candidates = response.candidates or []
+        if candidates and candidates[0].content and candidates[0].content.parts:
+            for part in candidates[0].content.parts:
+                if getattr(part, "function_call", None):
+                    fc = part.function_call
+                    tool_calls.append(
+                        ToolCallPart(
+                            new_call_id(),
+                            fc.name,
+                            dict(fc.args or {}),
+                            signature=getattr(part, "thought_signature", None),
+                        )
+                    )
+                elif getattr(part, "text", None) and not getattr(part, "thought", False):
+                    text_chunks.append(part.text)
 
         return ProviderResponse(
-            text=text, tool_calls=tool_calls, usage=usage, raw=response
+            text="".join(text_chunks),
+            tool_calls=tool_calls,
+            usage=usage,
+            raw=response,
         )

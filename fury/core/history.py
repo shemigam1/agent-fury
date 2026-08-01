@@ -33,11 +33,18 @@ class TextPart:
 
 @dataclass
 class ToolCallPart:
-    """A model's request to invoke a tool."""
+    """A model's request to invoke a tool.
+
+    ``signature`` carries opaque, provider-specific data that must be echoed back
+    verbatim when the call is replayed to that same provider (e.g. Gemini
+    "thinking" models require a ``thought_signature``). Other providers ignore it,
+    so it stays out of the way of the provider-neutral design.
+    """
 
     id: str
     name: str
     args: dict
+    signature: object = None
     kind: str = field(default="tool_call", init=False)
 
 

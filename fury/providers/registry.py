@@ -34,9 +34,10 @@ KNOWN_PROVIDERS = {
 
 _ALIASES = {
     "gemini": {
-        "flash": "gemini-2.0-flash-001",
-        "flash-lite": "gemini-2.0-flash-lite-001",
-        "flash-2.5": "gemini-2.5-flash",
+        # "-latest" tracks the current flash model and stays on a live quota tier.
+        "flash": "gemini-flash-latest",
+        "flash-lite": "gemini-flash-lite-latest",
+        "flash-2.0": "gemini-2.0-flash-001",
         "pro": "gemini-1.5-pro-002",
     },
     "openai": {"4o": "gpt-4o", "4o-mini": "gpt-4o-mini"},
@@ -50,8 +51,10 @@ _ALIASES = {
 # Rough USD/1M-token pricing for a /cost estimate. Expanded in obs/pricing (Phase 3).
 # Matched by substring; unknown models are treated as free (local/self-hosted).
 _PRICING = {
+    "gemini-flash-lite": (0.075, 0.30),
     "gemini-2.0-flash-lite": (0.075, 0.30),
     "gemini-2.0-flash": (0.10, 0.40),
+    "gemini-flash-latest": (0.10, 0.40),
     "gemini-2.5-flash": (0.15, 0.60),
     "gemini-1.5-pro": (1.25, 5.0),
     "gpt-4o-mini": (0.15, 0.60),

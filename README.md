@@ -105,8 +105,9 @@ anthropic:sonnet
   search/replace `edit_file`, chunked reads, `.gitignore` + token-budget awareness.
 - **Phase 3 ✅** — observability: OpenTelemetry (GenAI semantic conventions) →
   Collector → Tempo + Prometheus + Grafana (docker-compose, provisioned dashboards).
-- **Phase 4** — evals: a repo-agnostic harness that scores task pass/fail by running
-  a target repo's tests, producing a multi-model reliability leaderboard.
+- **Phase 4 ✅** — evals: a repo-agnostic harness that scores task pass/fail by
+  running a target repo's own verify command, producing a multi-model reliability
+  leaderboard (metrics also flow to Grafana).
 
 ## Observability
 
@@ -125,6 +126,26 @@ Instrumentation follows the OTel **GenAI semantic conventions** (`gen_ai.system`
 `gen_ai.request.model`, `gen_ai.usage.*`) plus `fury.*` extensions for cost and
 tool errors, so the data is portable to any OTel backend. If port 3000 is taken,
 set `FURY_GRAFANA_PORT`.
+
+## Evals & reliability
+
+Quantify how reliably a model completes real tasks, and compare models head-to-head.
+A task file lists prompts, each with a `verify` shell command (exit code =
+pass/fail), so it's language-agnostic. The target repo is never mutated — each run
+happens in an isolated git worktree (or filtered copy).
+
+```bash
+pip install -e ".[evals]"
+fury evals --repo /path/to/repo \
+           --tasks evals/tasks/example.yaml \
+           --models gemini:flash,openrouter:deepseek/deepseek-chat \
+           --telemetry            # optional: push results to Grafana
+```
+
+Output is a per-model leaderboard (success rate, avg iterations, tokens, cost,
+duration, tool-error rate) printed to the terminal and written to
+`fury-eval-report.md` + `.json`. With `--telemetry`, the same metrics populate the
+*agent-fury · Evals* Grafana dashboard.
 
 ## License
 

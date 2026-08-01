@@ -59,6 +59,7 @@ class Agent:
     def _loop(self) -> str:
         s = self.session
         for _ in range(s.config.max_iters):
+            s.iterations += 1
             elided = prune_history(s.history, s.context_budget())
             if elided and s.config.verbose:
                 self.console.info(f"pruned {elided} old tool output(s) to fit context")
@@ -122,6 +123,9 @@ class Agent:
         with s.telemetry.tool_span(call.name) as span:
             result = tool.run(s.tool_ctx, call.args)
             span.set_attribute("fury.tool.error", bool(result.is_error))
+        s.tool_calls += 1
+        if result.is_error:
+            s.tool_errors += 1
         s.telemetry.record_tool(call.name, result.is_error, time.perf_counter() - start)
         part = ToolResultPart(call.id, call.name, result.output, result.is_error)
         self.console.tool_result(part, verbose=s.config.verbose)

@@ -23,7 +23,7 @@ _HELP = """[bold]Slash commands[/bold]
   [cyan]/clear[/cyan]                    reset the conversation
   [cyan]/cwd[/cyan]                      show the working directory
   [cyan]/help[/cyan]                     this help
-  [cyan]/exit[/cyan]                     quit
+  [cyan]/exit[/cyan]                     quit (or just type `exit` / `quit`)
 """
 
 
@@ -56,6 +56,14 @@ def _parse(argv):
     _add_common(sub.add_parser("config", help="show resolved configuration"))
     obs_p = sub.add_parser("obs", help="manage the observability stack (docker)")
     obs_p.add_argument("action", choices=["up", "down", "status"], help="stack action")
+
+    ev = sub.add_parser("evals", help="run the eval suite and print a leaderboard")
+    ev.add_argument("--repo", default=".", help="target repo to run tasks against")
+    ev.add_argument("--tasks", required=True, help="path to a task file (.yaml/.json)")
+    ev.add_argument("--models", help="comma-separated model specs (default: config model)")
+    ev.add_argument("--out", default="fury-eval-report.md", help="markdown report path")
+    ev.add_argument("--telemetry", action="store_true", default=None,
+                    help="export eval metrics to the observability stack")
     return parser.parse_args(argv)
 
 
@@ -122,6 +130,31 @@ def _cmd_run(config: Config, con: FuryConsole, prompt: str) -> int:
     return 0
 
 
+def _cmd_evals(config: Config, con: FuryConsole, args) -> int:
+    from fury.evals import aggregate, load_tasks, print_table, run_suite, write_reports
+
+    models = (
+        [m.strip() for m in args.models.split(",")]
+        if args.models else [config.model_spec]
+    )
+    try:
+        tasks = load_tasks(args.tasks)
+    except (OSError, KeyError, ValueError) as e:
+        con.error(f"could not load tasks from {args.tasks}: {e}")
+        return 1
+    con.info(f"running {len(tasks)} task(s) × {len(models)} model(s) on {args.repo}")
+    results = run_suite(
+        con, repo=args.repo, tasks=tasks, models=models,
+        telemetry_enabled=bool(args.telemetry), endpoint=config.otel_endpoint,
+    )
+    stats = aggregate(results)
+    con.console.print()
+    print_table(con, stats)
+    out_json = write_reports(stats, results, args.out)
+    con.info(f"reports written: {args.out}, {out_json}")
+    return 0
+
+
 def _cmd_obs(con: FuryConsole, action: str) -> int:
     import shutil
     import subprocess
@@ -166,6 +199,8 @@ def _cmd_chat(config: Config, con: FuryConsole) -> int:
             break
         if not line:
             continue
+        if line.lower() in ("exit", "quit"):
+            break
         if line.startswith("/"):
             if _handle_slash(line, session, con):
                 break
@@ -238,6 +273,8 @@ def main(argv=None) -> int:
         return _cmd_config(config, con)
     if command == "obs":
         return _cmd_obs(con, args.action)
+    if command == "evals":
+        return _cmd_evals(config, con, args)
     if command == "run":
         return _cmd_run(config, con, " ".join(args.prompt))
     return _cmd_chat(config, con)

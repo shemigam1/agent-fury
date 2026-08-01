@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 
 from fury.core.history import Usage
 
@@ -30,6 +31,10 @@ class Telemetry:
         self._tracer = None
         if not enabled:
             return
+        # Quiet gRPC's noisy fork/fd warnings (we fork subprocesses for shell +
+        # eval workspaces); harmless for our export-only usage.
+        os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
+        os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "false")
         try:
             from opentelemetry import metrics, trace
             from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
@@ -75,6 +80,10 @@ class Telemetry:
         self._m_duration = meter.create_histogram("fury.llm.duration")
         self._m_tool_calls = meter.create_counter("fury.tool.calls")
         self._m_tool_duration = meter.create_histogram("fury.tool.duration")
+        self._m_eval_tasks = meter.create_counter("fury.eval.tasks")
+        self._m_eval_cost = meter.create_counter("fury.eval.cost")
+        self._m_eval_iters = meter.create_histogram("fury.eval.iterations")
+        self._m_eval_duration = meter.create_histogram("fury.eval.duration")
 
         # Keep exporter connection noise out of the user's terminal.
         logging.getLogger("opentelemetry").setLevel(logging.ERROR)
@@ -121,6 +130,14 @@ class Telemetry:
             return
         self._m_tool_calls.add(1, {"tool": name, "error": str(bool(is_error)).lower()})
         self._m_tool_duration.record(duration_s, {"tool": name})
+
+    def record_eval(self, model, passed, iterations, cost, duration_s):
+        if not self.enabled:
+            return
+        self._m_eval_tasks.add(1, {"model": model, "result": "pass" if passed else "fail"})
+        self._m_eval_cost.add(cost, {"model": model})
+        self._m_eval_iters.record(iterations, {"model": model})
+        self._m_eval_duration.record(duration_s, {"model": model})
 
     def shutdown(self) -> None:
         if not self.enabled:

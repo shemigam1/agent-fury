@@ -1,0 +1,33 @@
+# Example eval suite for agent-fury.
+#
+# Run against ANY repo you point --repo at (the repo is never mutated — each task
+# runs in an isolated git worktree / copy). Each task = a prompt + a `verify`
+# shell command whose exit code is the pass/fail signal, so the suite is
+# language-agnostic (swap in `pytest -q`, `go test ./...`, `npm test`, etc.).
+#
+#   fury evals --repo /path/to/repo --tasks evals/tasks/example.yaml \
+#              --models gemini:flash,openrouter:deepseek/deepseek-chat
+#
+# The example tasks below are self-contained and work against an empty/any repo.
+
+tasks:
+  - id: create-marker
+    prompt: >
+      Create a file named FURY_OK.txt at the repository root whose entire
+      contents are exactly the single word BANANA (no extra whitespace).
+    verify: "grep -qx BANANA FURY_OK.txt"
+    timeout: 120
+
+  - id: python-add
+    prompt: >
+      Create a file calc.py at the repository root defining a function
+      add(a, b) that returns the sum of its two arguments.
+    verify: "python3 -c \"import calc; assert calc.add(2, 3) == 5\""
+    timeout: 120
+
+  - id: reverse-string
+    prompt: >
+      Create strutil.py at the repository root with a function reverse(s)
+      that returns the input string reversed.
+    verify: "python3 -c \"import strutil; assert strutil.reverse('abc') == 'cba'\""
+    timeout: 120

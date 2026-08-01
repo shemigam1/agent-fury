@@ -17,7 +17,7 @@ from fury.tools.base import Tool, ToolContext
 
 
 class Session:
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, telemetry: Telemetry | None = None) -> None:
         self.config = config
         self.history = History()
         self.mode: Mode = get_mode(config.mode)
@@ -26,7 +26,13 @@ class Session:
         self.tool_ctx = ToolContext(root=config.root)
         self.total_usage = Usage()
         self.total_cost = 0.0
-        self.telemetry = Telemetry(config.telemetry, config.otel_endpoint)
+        # A shared Telemetry can be injected (e.g. by the eval harness, which runs
+        # many sessions but must set the OTel providers only once).
+        self.telemetry = telemetry or Telemetry(config.telemetry, config.otel_endpoint)
+        # Per-run counters (used by the eval harness for the leaderboard).
+        self.iterations = 0
+        self.tool_calls = 0
+        self.tool_errors = 0
 
     @property
     def tool_list(self) -> list[Tool]:

@@ -134,6 +134,9 @@ class GeminiProvider(Provider):
                     for tok in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE",
                                 "500", "INTERNAL")
                 )
+                # A per-day quota won't recover within a retry window — fail fast.
+                if "PerDay" in msg or "GenerateRequestsPerDay" in msg:
+                    retryable = False
                 if not retryable or attempt == max_attempts:
                     raise ProviderError(f"Gemini request failed: {e}") from e
                 time.sleep(min(self._retry_delay(msg) or 2 ** attempt, 60))

@@ -49,6 +49,14 @@ pip install -e ".[all,dev]"
 Extras: `openai` (OpenAI/OpenRouter/Ollama), `anthropic`, `obs`, `evals`, `all`.
 </details>
 
+### Update
+
+Pull the latest without reinstalling (keeps your Python + extras):
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/shemigam1/agent-fury/main/update.sh)"
+```
+
 ### Uninstall
 
 ```bash
@@ -59,8 +67,9 @@ Extras: `openai` (OpenAI/OpenRouter/Ollama), `anthropic`, `obs`, `evals`, `all`.
 
 ## Configure
 
-Set at least one API key (keys resolve: flags → environment / `.env` →
-`~/.config/fury/config.toml`). Simplest — a global env file loaded from your shell:
+Set at least one API key. fury reads keys from, in order: your shell environment,
+a `.env` in the current repo, then a global `~/.config/fury/.env`. Simplest — the
+global file (read automatically, works in any repo):
 
 ```bash
 mkdir -p ~/.config/fury

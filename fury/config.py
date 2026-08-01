@@ -17,11 +17,13 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 DEFAULT_MODEL = "gemini:flash"
 DEFAULT_MODE = "code"
-CONFIG_PATH = Path.home() / ".config" / "fury" / "config.toml"
+CONFIG_DIR = Path.home() / ".config" / "fury"
+CONFIG_PATH = CONFIG_DIR / "config.toml"
+GLOBAL_ENV = CONFIG_DIR / ".env"
 
 # provider -> environment variable holding its API key.
 _KEY_ENV = {
@@ -76,7 +78,12 @@ class Config:
 
     @classmethod
     def load(cls, **overrides) -> "Config":
-        load_dotenv()
+        # Load .env from the user's CURRENT directory first (find_dotenv defaults
+        # to searching from the package's install location, which is wrong for a
+        # pipx/pip-installed CLI), then fall back to the global ~/.config/fury/.env.
+        # Neither overrides a variable already set in the real environment.
+        load_dotenv(find_dotenv(usecwd=True))
+        load_dotenv(GLOBAL_ENV)
         file_cfg = _read_toml()
         file_keys = file_cfg.get("keys", {})
         file_base = file_cfg.get("base_urls", {})

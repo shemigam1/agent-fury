@@ -33,9 +33,18 @@ class FuryConsole:
             f"[dim]mode[/dim] [magenta]{mode}[/magenta]   "
             f"[dim]dir[/dim] {root}"
         )
-        self.console.print(
-            "  [dim]/help for commands · /model to switch · /exit to quit[/dim]\n"
-        )
+        self.console.print()
+        guide = [
+            ("just type a request", "the agent reads/edits files & runs commands"),
+            ("/model <spec>", "switch LLM — keeps the conversation context"),
+            ("/mode <code|auto|assistant>", "collaborate · autonomous · general help"),
+            ("/cost", "tokens used & estimated cost so far"),
+            ("/help", "all commands"),
+            ("exit", "quit"),
+        ]
+        for cmd, desc in guide:
+            self.console.print(f"  [cyan]{cmd:<28}[/cyan] [dim]{desc}[/dim]")
+        self.console.print()
 
     def rule(self, label: str = "") -> None:
         self.console.rule(f"[dim]{label}[/dim]" if label else "")

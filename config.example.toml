@@ -1,0 +1,19 @@
+# Copy to ~/.config/fury/config.toml and fill in what you use.
+# Resolution order: CLI flags > environment / .env > this file.
+
+[defaults]
+model = "gemini:flash"   # default provider:model
+mode = "code"            # code | auto | assistant
+
+[keys]
+# Any you omit fall back to environment variables
+# (GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, ANTHROPIC_API_KEY).
+# gemini = "..."
+# openai = "..."
+# openrouter = "..."
+# anthropic = "..."
+
+[base_urls]
+# Override endpoints for OpenAI-compatible backends if needed.
+# ollama = "http://localhost:11434/v1"
+# openrouter = "https://openrouter.ai/api/v1"

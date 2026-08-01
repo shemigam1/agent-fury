@@ -1,199 +1,109 @@
-🤖 **AI Code Assistant**
+# 🔥 agent-fury
 
-This project is a sophisticated Python-based AI agent designed to interact with a local development environment. Leveraging Google Gemini's powerful generative AI capabilities, it provides an intelligent assistant that can autonomously understand, navigate, and modify codebases by interacting with the file system and executing Python scripts. It's a valuable tool for automating development tasks, exploring projects, and debugging.
+A multi-provider, **Claude-Code-style terminal coding agent** that works inside
+*any* repository — JavaScript/TypeScript, Go, Rust, Python, or a mix. Install it
+globally, `cd` into a project, and start delegating.
 
-## Features
+> Started life as a single-file Gemini script; now a provider-agnostic agent with
+> a canonical conversation model, three operating modes, and an installable CLI.
+> (Observability + an eval/benchmark harness are on the roadmap — see below.)
 
--   🧠 **Intelligent Code Interaction**: Utilizes Google Gemini to interpret prompts and execute actions within a coding project.
--   📂 **File System Management**: Capable of listing directory contents, reading file information, and retrieving file content.
--   ✍️ **Code Modification**: Enables writing and overwriting file content, allowing the AI to modify source code or configuration files.
--   🚀 **Python Script Execution**: Executes Python files with specified arguments, capturing and returning their standard output and error streams.
--   🛡️ **Sandboxed Operations**: All file system and execution operations are constrained to a predefined working directory for security and isolation.
+## Highlights
 
-## Technologies Used
+- **Switch LLMs mid-session without losing context.** One canonical conversation
+  is translated to each provider's native format on the fly, so `/model` swaps the
+  backend while every prior turn and tool result carries over.
+- **Any provider:** Gemini (native), any **OpenAI-compatible** endpoint — OpenAI,
+  **OpenRouter** (hosted open-source models), **Ollama / LM Studio / vLLM** (local)
+  — and **native Anthropic (Claude)**.
+- **Three modes:** `code` (collaborative), `auto` (autonomous planner → executor),
+  `assistant` (general-purpose, with web search).
+- **Language-agnostic:** no toolchain is hardcoded. The agent inspects the repo and
+  runs its *own* tests/build (`npm test`, `go test ./...`, `cargo test`, `pytest`…).
+- **Safe by default:** every mutating/exec action asks permission (`--yolo` to skip,
+  `--plan-only` for read-only), all file access is sandboxed to the working dir.
 
-| Technology              | Description                                        | Version/Platform       |
-| :---------------------- | :------------------------------------------------- | :--------------------- |
-| Python                  | Primary programming language                       | 3.12                   |
-| Google Generative AI    | AI model for intelligent decision-making           | `google-genai==1.12.1` |
-| `python-dotenv`         | Environment variable management                    | `python-dotenv==1.1.0` |
-| `subprocess` module     | For running external Python scripts                | Standard Library       |
-| `os` module             | For file system interactions                       | Standard Library       |
-| `unittest`              | For testing the calculator module                  | Standard Library       |
-
-## Getting Started
-
-Follow these steps to set up the AI Code Assistant locally.
-
-### Installation
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/your-username/ai-agent.git
-    cd ai-agent
-    ```
-
-2.  **Set up Python Environment**:
-    This project requires Python 3.12. It's recommended to use `pyenv` or `conda` for environment management.
-    ```bash
-    # Using pyenv
-    pyenv install 3.12
-    pyenv local 3.12
-
-    # Or ensure you are using Python 3.12
-    python3.12 -m venv venv
-    source venv/bin/activate # On Windows: venv\Scripts\activate
-    ```
-
-3.  **Install Dependencies**:
-    ```bash
-    pip install -e .
-    ```
-
-### Environment Variables
-
-Create a `.env` file in the root of the project (`ai-agent/`) and add your Google Gemini API key:
-
-```ini
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
-```
-
-## Usage
-
-Run the `main.py` script with your prompt. The AI will then utilize its tools to attempt to fulfill your request.
+## Install
 
 ```bash
-python main.py "your prompt here"
+# isolated global tool (recommended)
+pipx install .
+
+# or into a venv for development
+pip install -e ".[all,dev]"
 ```
 
-**Example Scenarios**:
+Extras: `openai` (OpenAI/OpenRouter/Ollama), `anthropic`, `obs`, `evals`, or `all`.
 
-1.  **Ask about a project**:
-    ```bash
-    python main.py "What does the calculator project do and how can I run its tests?"
-    ```
+## Configure
 
-2.  **Request a change**:
-    ```bash
-    python main.py "The calculator module needs to support exponentiation. Add support for the '^' operator to the calculator/pkg/calculator.py file and update the tests."
-    ```
+Keys are read from flags → environment / `.env` → `~/.config/fury/config.toml`.
+Set whichever providers you use:
 
-3.  **Use verbose output to see AI reasoning**:
-    ```bash
-    python main.py "List all files in the calculator directory" --verbose
-    ```
-
-## AI Tool Function Definitions
-
-The AI Code Assistant interacts with the environment through a set of predefined tool functions. These functions act as an internal API, allowing the AI model to perform operations like file system navigation, content manipulation, and code execution. Each function has a clear schema for parameters, expected responses, and potential errors.
-
-### Tool Functions
-
-#### `get_files_info`
-**Description**: Lists files in the specified directory along with their sizes, constrained to the working directory.
-
-**Request**:
-```json
-{
-  "directory": "path/to/directory" // Optional: The directory to list files from, relative to the working directory. Defaults to "."
-}
+```ini
+# .env or shell env
+GEMINI_API_KEY=...
+OPENAI_API_KEY=...
+OPENROUTER_API_KEY=...
+ANTHROPIC_API_KEY=...
+# OLLAMA_BASE_URL defaults to http://localhost:11434/v1
 ```
 
-**Response**:
-```json
-{
-  "result": "- main.py: file_size=714 bytes, is_dir=False\n- tests.py: file_size=1426 bytes, is_dir=False\n- pkg: file_size=4096 bytes, is_dir=True"
-}
+Or a global config (see `config.example.toml`):
+
+```toml
+# ~/.config/fury/config.toml
+[defaults]
+model = "gemini:flash"
+mode = "code"
+
+[keys]
+gemini = "..."
 ```
 
-**Errors**:
--   `Error: Cannot list "[directory]" as it is outside the permitted working directory`
--   `Error: "[directory]" is not a directory`
--   `Error listing files: [detailed error message]`
+Check what's wired up:
 
-#### `get_file_content`
-**Description**: Reads the content of a file up to 10000 characters.
-
-**Request**:
-```json
-{
-  "file_path": "path/to/file.py" // Required: The file to read, relative to the working directory.
-}
+```bash
+fury models     # providers + which keys are set
+fury config     # resolved configuration
 ```
 
-**Response**:
-```json
-{
-  "result": "import sys\nfrom pkg.calculator import Calculator\nfrom pkg.render import format_json_output\n\ndef main():\n    calculator = Calculator()\n    if len(sys.argv) <= 1:\n        print(\"Calculator App\")\n        # ... truncated output"
-}
+## Use
+
+```bash
+fury                                  # interactive REPL in the current repo
+fury --model anthropic:sonnet         # pick a model
+fury --mode auto "add a /health endpoint and make the tests pass"
+fury run "what does this service do?" # one-shot, non-interactive
 ```
 
-**Errors**:
--   `Error: Cannot read "[file_path]" as it is outside the permitted working directory`
--   `Error: File not found or is not a regular file: "[file_path]"`
--   `Error listing file data: [detailed error message]`
+### Model specs
 
-#### `run_python_file`
-**Description**: Executes a Python file within the working directory and returns the output from the interpreter.
-
-**Request**:
-```json
-{
-  "file_path": "path/to/script.py", // Required: Path to the Python file to execute, relative to the working directory.
-  "args": ["arg1", "arg2"]           // Optional: Arguments to pass to the Python file.
-}
+```
+gemini:flash                          openai:gpt-4o-mini
+openrouter:deepseek/deepseek-chat     ollama:qwen2.5-coder
+anthropic:sonnet
 ```
 
-**Response**:
-```json
-{
-  "result": "STDOUT:\nCalculator App\nUsage: python main.py \"<expression>\"\nSTDERR:\n\nProcess exited with code 1"
-}
-```
+### Slash commands (in the REPL)
 
-**Errors**:
--   `Error: Cannot execute "[file_path]" as it is outside the permitted working directory`
--   `Error: File "[file_path]" not found.`
--   `Error: "[file_path]" is not a Python file.`
--   `Error: executing Python file: [detailed error message]`
+| command | does |
+| --- | --- |
+| `/model <spec>` | switch LLM, **keeping full context** |
+| `/mode <code\|auto\|assistant>` | switch agent mode |
+| `/models` · `/tools` | list providers / current tools |
+| `/cost` | session token usage + estimated cost |
+| `/clear` · `/cwd` · `/help` · `/exit` | utilities |
 
-#### `write_file`
-**Description**: Writes content to a file, overwriting existing content.
+## Roadmap
 
-**Request**:
-```json
-{
-  "file_path": "path/to/new_file.txt", // Required: The file to write to, relative to the working directory.
-  "content": "New content for the file." // Required: The content to write into the file.
-}
-```
-
-**Response**:
-```json
-{
-  "result": "Successfully wrote to \"path/to/new_file.txt\" (25 characters written)"
-}
-```
-
-**Errors**:
--   `Error: Cannot write to "[file_path]" as it is outside the permitted working directory`
--   `Error: File not found or is not a regular file: "[file_path]"`
--   `Error writing file data: [detailed error message]`
+- **Phase 2** — real-codebase tooling: ripgrep search, glob, search/replace edits,
+  repo map, `.gitignore` + token-budget awareness.
+- **Phase 3** — observability: OpenTelemetry (GenAI semantic conventions) →
+  Collector → Tempo + Prometheus + Grafana (docker-compose, provisioned dashboards).
+- **Phase 4** — evals: a repo-agnostic harness that scores task pass/fail by running
+  a target repo's tests, producing a multi-model reliability leaderboard.
 
 ## License
 
-No explicit license information provided.
-
-## Author Info
-
-Connect with me:
-
--   **LinkedIn**: [Your LinkedIn Profile]
--   **Portfolio**: [Your Personal Website/Portfolio]
--   **X (Twitter)**: [@YourTwitterHandle]
-
----
-![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Google_Gemini-API-4285F4?logo=google&logoColor=white)
-
-[![Readme was generated by Dokugen](https://img.shields.io/badge/Readme%20was%20generated%20by-Dokugen-brightgreen)](https://www.npmjs.com/package/dokugen)
+MIT

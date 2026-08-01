@@ -1,10 +1,53 @@
 [project]
-name = "ai-agent"
-version = "0.1.0"
-description = "Add your description here"
+name = "agent-fury"
+version = "0.2.0"
+description = "A multi-provider, Claude-Code-style terminal coding agent that works in any repo."
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "google-genai==1.12.1",
-    "python-dotenv==1.1.0",
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "semil" }]
+keywords = ["ai", "agent", "cli", "coding-agent", "llm", "gemini", "openai", "anthropic", "ollama"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Code Generators",
 ]
+dependencies = [
+    "google-genai>=1.12.1",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.40"]          # also covers OpenRouter, Ollama, LM Studio, vLLM
+anthropic = ["anthropic>=0.34"]
+obs = [                            # Phase 3
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp>=1.25",
+]
+evals = ["pyyaml>=6.0"]            # Phase 4
+all = [
+    "openai>=1.40",
+    "anthropic>=0.34",
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp>=1.25",
+    "pyyaml>=6.0",
+]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+fury = "fury.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/semil/agent-fury"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fury"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

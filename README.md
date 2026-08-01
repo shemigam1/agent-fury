@@ -1,4 +1,4 @@
-# 🔥 agent-fury
+# agent-fury
 
 A multi-provider, **Claude-Code-style terminal coding agent** that works inside
 *any* repository — JavaScript/TypeScript, Go, Rust, Python, or a mix. Install it

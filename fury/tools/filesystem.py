@@ -43,10 +43,27 @@ def _read_file(ctx: ToolContext, args: dict) -> ToolResult:
         return ToolResult(
             f'Error: file not found: "{file_path}"', is_error=True
         )
+
+    offset = args.get("offset")
+    limit = args.get("limit")
+    if offset is not None or limit is not None:
+        # Line-range read for large files (1-based offset).
+        start = max(int(offset or 1), 1)
+        count = int(limit) if limit is not None else 2000
+        with open(target, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        chunk = lines[start - 1 : start - 1 + count]
+        body = "".join(chunk)
+        header = f"[lines {start}-{start + len(chunk) - 1} of {len(lines)}]\n"
+        return ToolResult(header + body)
+
     with open(target, "r", encoding="utf-8", errors="replace") as f:
         data = f.read(READ_CHAR_LIMIT)
     if len(data) >= READ_CHAR_LIMIT:
-        data += f'\n[...file "{file_path}" truncated at {READ_CHAR_LIMIT} chars]'
+        data += (
+            f'\n[...file "{file_path}" truncated at {READ_CHAR_LIMIT} chars; '
+            "use offset/limit to read more]"
+        )
     return ToolResult(data)
 
 
@@ -90,7 +107,15 @@ read_file_tool = Tool(
             "file_path": {
                 "type": "string",
                 "description": "File to read, relative to the working directory.",
-            }
+            },
+            "offset": {
+                "type": "integer",
+                "description": "1-based start line for a partial read of a large file.",
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Number of lines to read from offset.",
+            },
         },
         "required": ["file_path"],
     },

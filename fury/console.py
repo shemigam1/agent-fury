@@ -87,10 +87,16 @@ class FuryConsole:
     def _summarize_args(self, name: str, args: dict) -> str:
         if name == "run_shell":
             return f"$ {args.get('command', '')}"
-        if name in ("read_file", "write_file"):
+        if name in ("read_file", "write_file", "edit_file"):
             return str(args.get("file_path", ""))
         if name == "list_files":
             return str(args.get("directory", "."))
+        if name in ("glob", "grep"):
+            pat = args.get("pattern", "")
+            g = args.get("glob")
+            return f"{pat}" + (f" in {g}" if g else "")
+        if name == "repomap":
+            return str(args.get("path", "."))
         if name in ("web_search",):
             return str(args.get("query", ""))
         if name in ("web_fetch",):

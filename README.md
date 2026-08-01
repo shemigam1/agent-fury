@@ -20,6 +20,9 @@ globally, `cd` into a project, and start delegating.
   `assistant` (general-purpose, with web search).
 - **Language-agnostic:** no toolchain is hardcoded. The agent inspects the repo and
   runs its *own* tests/build (`npm test`, `go test ./...`, `cargo test`, `pytest`…).
+- **Built for real codebases:** ripgrep-backed `grep`, `glob`, a ranked `repomap`,
+  precise search/replace `edit_file`, chunked reads, `.gitignore` awareness, and
+  automatic token-budget pruning so long tasks don't overflow the context window.
 - **Safe by default:** every mutating/exec action asks permission (`--yolo` to skip,
   `--plan-only` for read-only), all file access is sandboxed to the working dir.
 
@@ -97,8 +100,9 @@ anthropic:sonnet
 
 ## Roadmap
 
-- **Phase 2** — real-codebase tooling: ripgrep search, glob, search/replace edits,
-  repo map, `.gitignore` + token-budget awareness.
+- **Phase 1 ✅** — multi-provider core, 3 modes, REPL, packaging.
+- **Phase 2 ✅** — real-codebase tooling: ripgrep `grep`, `glob`, `repomap`,
+  search/replace `edit_file`, chunked reads, `.gitignore` + token-budget awareness.
 - **Phase 3** — observability: OpenTelemetry (GenAI semantic conventions) →
   Collector → Tempo + Prometheus + Grafana (docker-compose, provisioned dashboards).
 - **Phase 4** — evals: a repo-agnostic harness that scores task pass/fail by running

@@ -67,6 +67,19 @@ _PRICING = {
 }
 
 
+# Approximate context windows (tokens), matched by substring.
+_WINDOWS = {
+    "gemini-1.5-pro": 2_000_000,
+    "gemini-flash": 1_000_000,
+    "gemini-2.0-flash": 1_000_000,
+    "gemini-2.5-flash": 1_000_000,
+    "gpt-4o": 128_000,
+    "claude": 200_000,
+    "deepseek": 64_000,
+    "llama-3.1": 128_000,
+}
+
+
 def _price(model: str) -> tuple[float, float]:
     for key, price in _PRICING.items():
         if key in model:
@@ -74,9 +87,19 @@ def _price(model: str) -> tuple[float, float]:
     return (0.0, 0.0)
 
 
+def _window(model: str) -> int:
+    for key, win in _WINDOWS.items():
+        if key in model:
+            return win
+    return 128_000
+
+
 def _meta(system: str, label: str, model: str) -> ProviderMeta:
     pin, pout = _price(model)
-    return ProviderMeta(system=system, label=label, model=model, price_in=pin, price_out=pout)
+    return ProviderMeta(
+        system=system, label=label, model=model,
+        context_window=_window(model), price_in=pin, price_out=pout,
+    )
 
 
 def resolve_provider(spec: str, config) -> Provider:

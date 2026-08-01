@@ -128,7 +128,12 @@ class GeminiProvider(Provider):
                 return call()
             except Exception as e:  # noqa: BLE001
                 msg = str(e)
-                retryable = "429" in msg or "RESOURCE_EXHAUSTED" in msg
+                # 429 = rate limited; 503/500 = transient server overload/errors.
+                retryable = any(
+                    tok in msg
+                    for tok in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE",
+                                "500", "INTERNAL")
+                )
                 if not retryable or attempt == max_attempts:
                     raise ProviderError(f"Gemini request failed: {e}") from e
                 time.sleep(min(self._retry_delay(msg) or 2 ** attempt, 60))

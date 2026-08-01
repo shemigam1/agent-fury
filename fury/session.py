@@ -30,6 +30,11 @@ class Session:
     def tool_list(self) -> list[Tool]:
         return list(self.tools.values())
 
+    def context_budget(self) -> int:
+        """Token budget for history, leaving headroom for tools + the response."""
+        window = self.provider.meta.context_window or 128_000
+        return int(window * 0.6)
+
     def switch_model(self, spec: str) -> None:
         # resolve first so a bad spec doesn't clobber the working provider.
         self.provider = resolve_provider(spec, self.config)

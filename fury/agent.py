@@ -8,6 +8,7 @@ then executes the plan without pausing for the user.
 from __future__ import annotations
 
 from fury.console import FuryConsole
+from fury.core.context import prune_history
 from fury.core.errors import FuryError
 from fury.core.history import History, TextPart, ToolCallPart, ToolResultPart
 from fury.modes import PLANNER_PROMPT
@@ -56,6 +57,9 @@ class Agent:
     def _loop(self) -> str:
         s = self.session
         for _ in range(s.config.max_iters):
+            elided = prune_history(s.history, s.context_budget())
+            if elided and s.config.verbose:
+                self.console.info(f"pruned {elided} old tool output(s) to fit context")
             with self.console.thinking(s.provider.meta.spec):
                 resp = s.provider.generate(
                     s.mode.system_prompt, s.history, s.tool_list

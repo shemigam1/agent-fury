@@ -28,7 +28,7 @@ globally, `cd` into a project, and start delegating.
 One-liner (requires the repo to be public on GitHub):
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/semil/agent-fury/main/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/shemigam1/agent-fury/main/install.sh)"
 ```
 
 It selects a compatible Python (3.11–3.13), ensures `pipx`, and installs the
@@ -52,7 +52,7 @@ Extras: `openai` (OpenAI/OpenRouter/Ollama), `anthropic`, `obs`, `evals`, `all`.
 ### Uninstall
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/semil/agent-fury/main/uninstall.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/shemigam1/agent-fury/main/uninstall.sh)"
 ```
 
 ---

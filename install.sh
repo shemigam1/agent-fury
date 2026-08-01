@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # agent-fury installer.
-#   curl -fsSL https://raw.githubusercontent.com/semil/agent-fury/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/shemigam1/agent-fury/main/install.sh | bash
 #
 # Overridable via env vars:
 #   FURY_REF=v0.2.0   install a specific branch/tag (default: main)
@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-REPO="${FURY_REPO:-https://github.com/semil/agent-fury.git}"
+REPO="${FURY_REPO:-https://github.com/shemigam1/agent-fury.git}"
 REF="${FURY_REF:-main}"
 EXTRAS="${FURY_EXTRAS:-all}"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # agent-fury uninstaller.
-#   curl -fsSL https://raw.githubusercontent.com/semil/agent-fury/main/uninstall.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/shemigam1/agent-fury/main/uninstall.sh | bash
 #
 set -euo pipefail
 

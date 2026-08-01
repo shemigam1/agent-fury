@@ -40,7 +40,7 @@ dev = ["pytest>=8.0"]
 fury = "fury.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/semil/agent-fury"
+Homepage = "https://github.com/shemigam1/agent-fury"
 
 [build-system]
 requires = ["hatchling"]

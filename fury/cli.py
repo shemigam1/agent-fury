@@ -38,6 +38,8 @@ def _add_common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--verbose", action="store_true", default=None,
                    help="show full tool output")
     p.add_argument("--max-iters", dest="max_iters", type=int, help="max agent iterations")
+    p.add_argument("--telemetry", action="store_true", default=None,
+                   help="export OpenTelemetry traces/metrics (needs `fury obs up`)")
 
 
 def _parse(argv):
@@ -52,6 +54,8 @@ def _parse(argv):
     run_p.add_argument("prompt", nargs="+", help="the prompt")
     _add_common(sub.add_parser("models", help="list providers and configured keys"))
     _add_common(sub.add_parser("config", help="show resolved configuration"))
+    obs_p = sub.add_parser("obs", help="manage the observability stack (docker)")
+    obs_p.add_argument("action", choices=["up", "down", "status"], help="stack action")
     return parser.parse_args(argv)
 
 
@@ -64,6 +68,7 @@ def _config_from(args) -> Config:
         plan_only=getattr(args, "plan_only", None),
         verbose=getattr(args, "verbose", None),
         max_iters=getattr(args, "max_iters", None),
+        telemetry=getattr(args, "telemetry", None),
     )
 
 
@@ -104,7 +109,10 @@ def _cmd_run(config: Config, con: FuryConsole, prompt: str) -> int:
     if session is None:
         return 1
     agent = Agent(session, con)
-    agent.run_turn(prompt)
+    try:
+        agent.run_turn(prompt)
+    finally:
+        session.telemetry.shutdown()
     if config.verbose:
         con.cost_line(
             session.total_usage.input_tokens,
@@ -112,6 +120,36 @@ def _cmd_run(config: Config, con: FuryConsole, prompt: str) -> int:
             session.total_cost,
         )
     return 0
+
+
+def _cmd_obs(con: FuryConsole, action: str) -> int:
+    import shutil
+    import subprocess
+    from importlib.resources import files
+
+    if not shutil.which("docker"):
+        con.error("docker not found. Install Docker Desktop to run the stack.")
+        return 1
+    deploy = files("fury.obs") / "deploy"
+    compose = deploy / "docker-compose.yml"
+    if not compose.is_file():
+        con.error(f"compose file not found at {compose}")
+        return 1
+    deploy_dir = str(compose.parent)
+    cmds = {
+        "up": ["docker", "compose", "up", "-d"],
+        "down": ["docker", "compose", "down"],
+        "status": ["docker", "compose", "ps"],
+    }
+    con.info(f"docker compose {action} (in {deploy_dir})")
+    rc = subprocess.run(cmds[action], cwd=deploy_dir).returncode
+    if action == "up" and rc == 0:
+        con.console.print(
+            "\n[green]stack up[/green] — Grafana [cyan]http://localhost:3000[/cyan] "
+            "(dashboard: agent-fury · Overview)\n"
+            "Now run with telemetry: [bold]fury --telemetry[/bold]"
+        )
+    return rc
 
 
 def _cmd_chat(config: Config, con: FuryConsole) -> int:
@@ -136,6 +174,7 @@ def _cmd_chat(config: Config, con: FuryConsole) -> int:
             agent.run_turn(line)
         except KeyboardInterrupt:
             con.warn("interrupted")
+    session.telemetry.shutdown()
     con.info("bye.")
     return 0
 
@@ -197,6 +236,8 @@ def main(argv=None) -> int:
         return _cmd_models(config, con)
     if command == "config":
         return _cmd_config(config, con)
+    if command == "obs":
+        return _cmd_obs(con, args.action)
     if command == "run":
         return _cmd_run(config, con, " ".join(args.prompt))
     return _cmd_chat(config, con)

@@ -7,6 +7,8 @@ then executes the plan without pausing for the user.
 
 from __future__ import annotations
 
+import time
+
 from fury.console import FuryConsole
 from fury.core.context import prune_history
 from fury.core.errors import FuryError
@@ -60,9 +62,18 @@ class Agent:
             elided = prune_history(s.history, s.context_budget())
             if elided and s.config.verbose:
                 self.console.info(f"pruned {elided} old tool output(s) to fit context")
-            with self.console.thinking(s.provider.meta.spec):
-                resp = s.provider.generate(
-                    s.mode.system_prompt, s.history, s.tool_list
+
+            meta = s.provider.meta
+            start = time.perf_counter()
+            with s.telemetry.llm_span(meta.system, meta.model, s.mode.name) as span:
+                with self.console.thinking(meta.spec):
+                    resp = s.provider.generate(
+                        s.mode.system_prompt, s.history, s.tool_list
+                    )
+                cost = s.provider.cost(resp.usage)
+                s.telemetry.record_llm(
+                    span, meta.system, meta.model, s.mode.name,
+                    resp.usage, cost, time.perf_counter() - start,
                 )
             s.record_usage(resp.usage)
 
@@ -107,7 +118,11 @@ class Agent:
                         call.id, call.name, "Denied by user.", is_error=True
                     )
 
-        result = tool.run(s.tool_ctx, call.args)
+        start = time.perf_counter()
+        with s.telemetry.tool_span(call.name) as span:
+            result = tool.run(s.tool_ctx, call.args)
+            span.set_attribute("fury.tool.error", bool(result.is_error))
+        s.telemetry.record_tool(call.name, result.is_error, time.perf_counter() - start)
         part = ToolResultPart(call.id, call.name, result.output, result.is_error)
         self.console.tool_result(part, verbose=s.config.verbose)
         return part

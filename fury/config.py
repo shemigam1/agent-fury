@@ -58,6 +58,8 @@ class Config:
     yolo: bool = False
     plan_only: bool = False
     max_iters: int = 40
+    telemetry: bool = False
+    otel_endpoint: str = "localhost:4317"
     keys: dict = field(default_factory=dict)
     base_urls: dict = field(default_factory=dict)
 
@@ -92,9 +94,17 @@ class Config:
                 os.environ.get(env) or file_base.get(provider) or default
             )
 
+        tel_cfg = file_cfg.get("telemetry", {})
+        env_tel = os.environ.get("FURY_TELEMETRY", "").lower() in ("1", "true", "yes")
         params = {
             "model_spec": file_defaults.get("model", DEFAULT_MODEL),
             "mode": file_defaults.get("mode", DEFAULT_MODE),
+            "telemetry": env_tel or bool(tel_cfg.get("enabled", False)),
+            "otel_endpoint": (
+                os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+                or tel_cfg.get("endpoint")
+                or "localhost:4317"
+            ),
             "keys": keys,
             "base_urls": base_urls,
         }

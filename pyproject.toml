@@ -49,5 +49,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["fury"]
 
+# Ship the observability stack (compose + configs + dashboards) inside the wheel
+# so `fury obs up` works from a pip/pipx install, not just from the repo.
+[tool.hatch.build]
+artifacts = ["fury/obs/deploy/**"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -103,10 +103,28 @@ anthropic:sonnet
 - **Phase 1 ✅** — multi-provider core, 3 modes, REPL, packaging.
 - **Phase 2 ✅** — real-codebase tooling: ripgrep `grep`, `glob`, `repomap`,
   search/replace `edit_file`, chunked reads, `.gitignore` + token-budget awareness.
-- **Phase 3** — observability: OpenTelemetry (GenAI semantic conventions) →
+- **Phase 3 ✅** — observability: OpenTelemetry (GenAI semantic conventions) →
   Collector → Tempo + Prometheus + Grafana (docker-compose, provisioned dashboards).
 - **Phase 4** — evals: a repo-agnostic harness that scores task pass/fail by running
   a target repo's tests, producing a multi-model reliability leaderboard.
+
+## Observability
+
+Spin up a local Grafana stack and watch the agent's tokens, cost, latency, and
+tool-error rate live (traces in Tempo, metrics in Prometheus):
+
+```bash
+pip install -e ".[obs]"     # OpenTelemetry SDK + OTLP exporter
+fury obs up                 # starts collector + Tempo + Prometheus + Grafana (docker)
+fury --telemetry            # run the agent with export enabled
+# open Grafana → dashboard "agent-fury · Overview"
+fury obs down               # tear the stack down
+```
+
+Instrumentation follows the OTel **GenAI semantic conventions** (`gen_ai.system`,
+`gen_ai.request.model`, `gen_ai.usage.*`) plus `fury.*` extensions for cost and
+tool errors, so the data is portable to any OTel backend. If port 3000 is taken,
+set `FURY_GRAFANA_PORT`.
 
 ## License
 

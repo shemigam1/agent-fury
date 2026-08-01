@@ -13,6 +13,7 @@ A bare spec with no provider prefix (e.g. "flash") defaults to Gemini.
 from __future__ import annotations
 
 from fury.core.errors import ConfigError
+from fury.obs.pricing import price_for
 from fury.providers.base import Provider, ProviderMeta
 
 # provider -> {env key, default base_url, example models} — powers `fury models`.
@@ -48,23 +49,6 @@ _ALIASES = {
     },
 }
 
-# Rough USD/1M-token pricing for a /cost estimate. Expanded in obs/pricing (Phase 3).
-# Matched by substring; unknown models are treated as free (local/self-hosted).
-_PRICING = {
-    "gemini-flash-lite": (0.075, 0.30),
-    "gemini-2.0-flash-lite": (0.075, 0.30),
-    "gemini-2.0-flash": (0.10, 0.40),
-    "gemini-flash-latest": (0.10, 0.40),
-    "gemini-2.5-flash": (0.15, 0.60),
-    "gemini-1.5-pro": (1.25, 5.0),
-    "gpt-4o-mini": (0.15, 0.60),
-    "gpt-4o": (2.5, 10.0),
-    "claude-haiku": (1.0, 5.0),
-    "claude-sonnet": (3.0, 15.0),
-    "claude-opus": (15.0, 75.0),
-    "deepseek": (0.14, 0.28),
-    "llama-3.1-70b": (0.35, 0.40),
-}
 
 
 # Approximate context windows (tokens), matched by substring.
@@ -80,13 +64,6 @@ _WINDOWS = {
 }
 
 
-def _price(model: str) -> tuple[float, float]:
-    for key, price in _PRICING.items():
-        if key in model:
-            return price
-    return (0.0, 0.0)
-
-
 def _window(model: str) -> int:
     for key, win in _WINDOWS.items():
         if key in model:
@@ -95,7 +72,7 @@ def _window(model: str) -> int:
 
 
 def _meta(system: str, label: str, model: str) -> ProviderMeta:
-    pin, pout = _price(model)
+    pin, pout = price_for(model)
     return ProviderMeta(
         system=system, label=label, model=model,
         context_window=_window(model), price_in=pin, price_out=pout,

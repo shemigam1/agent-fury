@@ -9,6 +9,7 @@ from __future__ import annotations
 from fury.config import Config
 from fury.core.history import History, Usage
 from fury.modes import Mode, get_mode
+from fury.obs.telemetry import Telemetry
 from fury.providers.base import Provider
 from fury.providers.registry import resolve_provider
 from fury.tools import build_registry
@@ -25,6 +26,7 @@ class Session:
         self.tool_ctx = ToolContext(root=config.root)
         self.total_usage = Usage()
         self.total_cost = 0.0
+        self.telemetry = Telemetry(config.telemetry, config.otel_endpoint)
 
     @property
     def tool_list(self) -> list[Tool]:
